@@ -8,3 +8,7 @@
 | Дубов Владислав Владимирович  | [@dubov_vv](https://t.me/dubov_vv) | [hotspurs](https://github.com/hotspurs) |
 | Крахмаль Роман Александрович | [@Kraky17](https://t.me/Kraky17) | [Kraky17](https://github.com/Kraky17) |
 | Громов Кирилл Семенович | [@grok1](https://t.me/grok1) | [ksGrom](https://github.com/ksGrom) |
+
+Примечания:
+- Используются SSH-туннели для подключения (см. гайд tunnel_commands.txt)
+- Сохранены скриншоты, подтверждающие работу системы (см. папку screenshots)
