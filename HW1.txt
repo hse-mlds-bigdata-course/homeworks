@@ -1,0 +1,252 @@
+##### HW1 - HADOOP #####
+
+### Part 0. Preparation and connections
+
+ssh team@176.109.91.27 # ssh login 
+python3 -V # check python version
+
+# check other hosts
+ping 192.168.1.102
+ping 192.168.1.103
+ping 192.168.1.104
+ping 192.168.1.105
+
+# install java
+sudo apt-get install software-properties-common
+sudo apt install openjdk-11-jdk-headless
+
+# get SSH keys
+sudo adduser hadoop
+# follow prompt; password is the same as for team
+sudo -i -u hadoop
+ssh-keygen
+cat .ssh/id_ed25519.pub # copy the key; check if anything else!!!
+
+# download hadoop
+wget https://dlcdn.apache.org/hadoop/common/hadoop-3.4.0/hadoop-3.4.0.tar.gz
+
+# let hosts know each other
+sudo nano /etc/hosts
+# comment out everything and add:
+192.168.1.102   team-25-jn
+192.168.1.103	team-25-nn    
+192.168.1.104	team-25-dn-0
+192.168.1.105	team-25-dn-1
+# and check by names
+ping team-25-jn
+ping team-25-nn
+ping team-25-dn-0
+ping team-25-dn-1
+su team
+
+
+### SAME FOR ALL NODES ###
+
+ssh team-25-nn # enter pwd for now
+yes
+sudo nano /etc/hosts
+# comment out everything and add:
+192.168.1.102   team-25-jn
+192.168.1.103	team-25-nn    
+192.168.1.104	team-25-dn-0
+192.168.1.105	team-25-dn-1
+
+# create hadoop user
+sudo adduser hadoop
+sudo -i -u hadoop # switch to it
+ssh-keygen
+cat .ssh/id_ed25519.pub # [COPY KEY]
+exit
+su team
+
+ssh team-25-dn-0 # enter pwd for now
+yes
+sudo nano /etc/hosts
+# comment out everything and add:
+192.168.1.102   team-25-jn
+192.168.1.103	team-25-nn    
+192.168.1.104	team-25-dn-0
+192.168.1.105	team-25-dn-1
+
+# create hadoop user
+sudo adduser hadoop
+sudo -i -u hadoop # switch to it
+ssh-keygen
+cat .ssh/id_ed25519.pub # [COPY KEY]
+exit
+su team
+
+ssh team-25-dn-1 # enter pwd for now
+sudo nano /etc/hosts
+yes
+# comment out everything and add:
+192.168.1.102   team-25-jn
+192.168.1.103	team-25-nn    
+192.168.1.104	team-25-dn-0
+192.168.1.105	team-25-dn-1
+
+sudo adduser hadoop
+sudo -i -u hadoop # switch to it
+ssh-keygen
+cat .ssh/id_ed25519.pub # [COPY KEY]
+exit
+
+### SAME FOR ALL NODES ###
+
+
+# go back to jump node and save keys:
+ssh team-25-jn
+nano .ssh/authorized_keys # and paste all 4 keys here
+
+# then for each node, copy it:
+scp .ssh/authorized_keys team-25-nn:/home/hadoop/.ssh/
+scp .ssh/authorized_keys team-25-dn-0:/home/hadoop/.ssh/
+scp .ssh/authorized_keys team-25-dn-1:/home/hadoop/.ssh/
+
+# check that it works now
+ssh team-25-jn
+ssh team-25-nn
+ssh team-25-dn-0
+ssh team-25-dn-1
+
+# back to jn
+ssh team-25-jn
+
+# copy installer to all nodes
+scp hadoop-3.4.0.tar.gz team-25-nn:/home/hadoop
+scp hadoop-3.4.0.tar.gz team-25-dn-0:/home/hadoop
+scp hadoop-3.4.0.tar.gz team-25-dn-1:/home/hadoop
+
+# extract 
+ls -l
+tar -xvzf hadoop-3.4.0.tar.gz
+
+# then ssh to each node and extract as well
+ssh team-25-nn
+tar -xvzf hadoop-3.4.0.tar.gz
+
+ssh team-25-dn-0
+tar -xvzf hadoop-3.4.0.tar.gz
+
+ssh team-25-dn-1
+tar -xvzf hadoop-3.4.0.tar.gz
+
+
+### Part 1. Hadoop configuration
+
+ssh team-25-nn # get to NN
+su hadoop
+java -version # check java
+which java
+readlink -f /usr/bin/java # check where Java is
+nano ~/.profile
+
+# add these lines to .profile file
+export HADOOP_HOME=/home/hadoop/hadoop-3.4.0
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+
+
+source ~/.profile
+hadoop version # check
+export # see all env var
+echo $HADOOP_HOME
+echo $JAVA_HOME
+
+# copy to all nodes
+scp ~/.profile team-25-dn-0:/home/hadoop
+scp ~/.profile team-25-dn-1:/home/hadoop
+
+# activate profile on every one
+ssh team-25-dn-0
+source ~/.profile
+
+ssh team-25-dn-1
+source ~/.profile
+
+exit
+
+cd hadoop-3.4.0/etc/hadoop
+nano hadoop-env.sh
+# add line:
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 # add java_home
+
+# copy to all nodes
+scp hadoop-env.sh team-25-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp hadoop-env.sh team-25-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
+
+nano core-site.xml
+# change as follows
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://team-25-nn:9000</value> # better than 127.0.0.1
+    </property>
+</configuration>
+
+nano hdfs-site.xml
+# change as follows
+<configuration>
+    <property>
+        <name>dfs.replication</name>
+        <value>3</value>
+    </property>
+</configuration>
+
+nano workers
+# add other nodes
+# remove localhost#
+team-25-nn
+team-25-dn-0
+team-25-dn-1
+
+# copy to data nodes
+scp core-site.xml team-25-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp core-site.xml team-25-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp hdfs-site.xml team-25-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp hdfs-site.xml team-25-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp workers team-25-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp workers team-25-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
+
+cd ~/hadoop-3.4.0
+bin/hdfs namenode -format # format hdfs filesystem
+sbin/start-dfs.sh # start hadoop
+jps # check nodes
+
+# then ssh to others and do jps to check
+ssh team-25-dn-0
+jps
+
+ssh team-25-dn-1
+jps
+
+exit
+
+
+### Part 2. Java and Python config
+ssh team-25-jn # SSH to jump node
+su team
+
+# nginx config
+sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/nn
+sudo nano /etc/nginx/sites-available/nn
+# and change following lines
+server {
+	listen 9870 default_server;
+	# listen [::]:80 default_server;
+	.....
+	location / {
+		# try_files $uri $uri/ =404;
+		proxy_pass http://team-25-nn:9870;
+	}
+
+
+sudo ln -s /etc/nginx/sites-available/nn /etc/nginx/sites-enabled/nn
+sudo systemctl reload nginx
+
+# open in web browser on local machine
+176.109.91.27:9870 # Hadoop interface
+
+##### HW1 - HADOOP #####
+
+

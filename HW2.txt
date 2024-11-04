@@ -1,0 +1,107 @@
+##### HW2 - YARN #####
+ssh team@176.109.91.27 # ssh login (jump node)
+su hadoop
+
+ssh team-25-nn # SSH to name node
+su hadoop
+
+cd hadoop-3.4.0/etc/hadoop/
+nano mapred-site.xml
+# add do following changes
+
+<configuration>
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+    </property>
+    <property>
+        <name>mapreduce.application.classpath</name>
+        <value>$HADOOP_HOME/share/hadoop/mapreduce/*:$HADOOP_HOME/share/hadoop/mapreduce/lib/*</value>
+    </property>
+</configuration>
+
+nano yarn-site.xml
+# add do following changes
+
+<configuration>
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.env-whitelist</name>
+        <value>JAVA_HOME,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_CONF_DIR,CLASSPATH_PREPEND_DISTCACHE,HADOOP_YARN_HOME,HADOOP_HOME,PATH,LANG,TZ,HADOOP_MAPRED_HOME</value>
+    </property>
+</configuration>
+
+# copy to other nodes
+scp mapred-site.xml team-25-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp mapred-site.xml team-25-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp yarn-site.xml team-25-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp yarn-site.xml team-25-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
+
+cd ../../
+sbin/start-yarn.sh # start yarn
+mapred --daemon start historyserver
+
+ssh team-25-jn # go back to jump node
+su team
+
+sudo cp /etc/nginx/sites-available/nn /etc/nginx/sites-available/ya
+sudo cp /etc/nginx/sites-available/nn /etc/nginx/sites-available/dh
+
+# configuration for web interface (yarn)
+sudo nano /etc/nginx/sites-available/ya
+
+# do the changes 
+server {
+	listen 8088 default_server;
+	.....
+	location / {
+		proxy_pass http://team-25-nn:8088;
+	}
+
+# config for web interface (history server)
+sudo nano /etc/nginx/sites-available/dh 
+server {
+	listen 19888 default_server;
+	.....
+	location / {
+		proxy_pass http://team-25-nn:19888;
+	}
+
+# turn on updated hosts
+sudo ln -s /etc/nginx/sites-available/ya /etc/nginx/sites-enabled/ya 
+sudo ln -s /etc/nginx/sites-available/dh /etc/nginx/sites-enabled/dh
+sudo systemctl reload nginx
+exit
+
+# open in web browser on local machine
+176.109.91.27:8088 # YARN interface
+176.109.91.27:19888 # JobHistory server
+
+exit
+
+# Stop everything
+ssh team@176.109.91.27 # ssh login to jump node
+su hadoop
+
+ssh team-25-nn
+cd hadoop-3.4.0/
+
+mapred --daemon stop historyserver # stop mapred
+sbin/stop-yarn.sh # stop yarn
+sbin/stop-dfs.sh # stop distr file system
+
+jps # check that nothing left
+
+# shh to each datanode and check that nothing left
+ssh team-25-dn-0
+jps
+
+ssh team-25-dn-1
+jps
+
+exit
+
+##### HW2 - YARN #####
