@@ -104,17 +104,42 @@ collect_and_distribute_keys() {
 
 # Function to setup Hadoop
 setup_hadoop() {
-    log "Setting up Hadoop"
+    log "Starting Hadoop setup process..."
     
-    # Download Hadoop
-    wget -q "https://dlcdn.apache.org/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz"
+    # Check if Hadoop archive already exists
+    if [ ! -f "hadoop-${HADOOP_VERSION}.tar.gz" ]; then
+        log "Downloading Hadoop ${HADOOP_VERSION}..."
+        wget --progress=bar:force "https://dlcdn.apache.org/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz" 2>&1
+    else
+        log "Hadoop archive already exists, skipping download"
+    fi
     
     # Distribute and extract on all nodes
+    log "Starting distribution to nodes..."
+    
     for node in "${!NODES[@]}"; do
         local ip="${NODES[$node]}"
-        scp "hadoop-${HADOOP_VERSION}.tar.gz" "team@$ip:/tmp/"
-        ssh "team@$ip" "sudo -u hadoop tar -xzf /tmp/hadoop-${HADOOP_VERSION}.tar.gz -C /home/hadoop/"
+        
+        log "Processing node: $node ($ip)"
+        echo "  → Copying Hadoop archive..."
+        scp -q "hadoop-${HADOOP_VERSION}.tar.gz" "team@$ip:/tmp/" || {
+            error "Failed to copy Hadoop archive to $node"
+        }
+        
+        echo "  → Extracting Hadoop archive..."
+        ssh "team@$ip" "sudo -u hadoop tar -xzf /tmp/hadoop-${HADOOP_VERSION}.tar.gz -C /home/hadoop/" || {
+            error "Failed to extract Hadoop archive on $node"
+        }
+        
+        echo "  → Cleaning up temporary files..."
+        ssh "team@$ip" "rm -f /tmp/hadoop-${HADOOP_VERSION}.tar.gz" || {
+            error "Failed to clean up temporary files on $node"
+        }
+        
+        log "✓ Node $node setup complete"
     done
+    
+    log "Hadoop distribution completed successfully"
 }
 
 # Main execution
