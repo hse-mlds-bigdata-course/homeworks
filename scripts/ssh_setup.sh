@@ -19,6 +19,9 @@ setup_ssh_keys() {
     sudo -u "$user" mkdir -p "/home/$user/.ssh"
     # Set proper permissions
     sudo -u "$user" chmod 700 "/home/$user/.ssh"
+    # Create empty known_hosts file if it doesn't exist
+    sudo -u "$user" touch "/home/$user/.ssh/known_hosts"
+    sudo -u "$user" chmod 600 "/home/$user/.ssh/known_hosts"
     # Generate new keys
     sudo -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
 }
@@ -28,9 +31,10 @@ create_user() {
     local user=$1
     if ! id "$user" &>/dev/null; then
         echo "Creating user $user..."
-        # Create user with no defaults to force prompts
-        sudo adduser --disabled-password "$user"
-        # Force password change
+        # Create user with minimal interaction
+        sudo useradd -m -s /bin/bash "$user"
+        # Set up password
+        echo "Setting password for $user"
         sudo passwd "$user"
     else
         echo "User $user already exists on this node."
@@ -71,7 +75,9 @@ distribute_keys() {
     # Distribute to all nodes
     tail -n +2 "$nodes_file" | while read -r ip name rest; do
         echo "Copying keys to $name..."
-        sudo -u hadoop ssh-keyscan -H "$name" >> /home/hadoop/.ssh/known_hosts 2>/dev/null
+        # Add host to known_hosts file as hadoop user
+        sudo -u hadoop bash -c "ssh-keyscan -H $name >> /home/hadoop/.ssh/known_hosts 2>/dev/null"
+        # Copy authorized_keys file
         sudo -u hadoop scp /tmp/authorized_keys "hadoop@$name:/home/hadoop/.ssh/authorized_keys"
     done
 }
