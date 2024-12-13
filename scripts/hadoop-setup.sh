@@ -128,12 +128,13 @@ update_hosts() {
         echo "${NODES[$n]} $n" >> temp_hosts
     done
     
-    # Copy the local temp_hosts to the remote machine
+    # Copy hosts file to remote
     scp_with_pass temp_hosts "team@$ip:/tmp/hosts"
     
-    # Update the /etc/hosts file using sudo with a piped password
-    # Using 'cp' is simpler than using 'cat ... > /etc/hosts'
-    ssh_with_pass "$ip" "echo \"$TEAM_PASSWORD\" | sudo -S cp /tmp/hosts /etc/hosts"
+    # Update /etc/hosts using sudo with explicit password passing
+    ssh_with_pass "$ip" "cat /tmp/hosts | sudo --prompt='' -S bash -c 'cat > /etc/hosts'" << EOF
+$TEAM_PASSWORD
+EOF
     
     # Cleanup
     ssh_with_pass "$ip" "rm /tmp/hosts"
