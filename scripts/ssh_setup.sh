@@ -21,10 +21,9 @@ setup_ssh_keys() {
 # Function to create user if not exists
 create_user() {
     local user=$1
-    local password=$2
     if ! id "$user" &>/dev/null; then
-        sudo adduser --disabled-password --gecos "" "$user"
-        echo "$user:$password" | sudo chpasswd
+        echo "Creating user $user..."
+        sudo adduser "$user"
     fi
 }
 
@@ -32,7 +31,6 @@ create_user() {
 setup_node() {
     local node_ip=$1
     local node_name=$2
-    local user_password=$3
     
     echo "Setting up node: $node_name ($node_ip)"
     
@@ -42,7 +40,7 @@ setup_node() {
     
     # Create hadoop user and setup SSH
     echo "Creating hadoop user..."
-    create_user "hadoop" "$user_password"
+    create_user "hadoop"
     
     # Setup SSH keys
     echo "Setting up SSH keys..."
@@ -71,11 +69,16 @@ distribute_keys() {
 # Main execution
 main() {
     local nodes_file=$1
-    local user_password=$2
     
     # Check parameters
-    if [ -z "$nodes_file" ] || [ -z "$user_password" ]; then
-        echo "Usage: $0 <nodes_file> <hadoop_user_password>"
+    if [ -z "$nodes_file" ]; then
+        echo "Usage: $0 <nodes_file>"
+        exit 1
+    fi
+    
+    # Check if nodes file exists
+    if [ ! -f "$nodes_file" ]; then
+        echo "Error: Nodes file $nodes_file not found"
         exit 1
     fi
     
@@ -88,7 +91,7 @@ main() {
     
     # Setup each node
     tail -n +2 "$nodes_file" | while read -r ip name rest; do
-        setup_node "$ip" "$name" "$user_password"
+        setup_node "$ip" "$name"
     done
     
     # Distribute SSH keys
@@ -101,4 +104,4 @@ main() {
 }
 
 # Execute main function
-main "$1" "$2"
+main "$1"
