@@ -35,8 +35,10 @@ error() {
 
 # SSH wrapper function
 scp_with_pass() {
-    info "Running SCP command: $@"
-    SSHPASS=$TEAM_PASSWORD sshpass -e scp -o StrictHostKeyChecking=no "$@"
+    local src=$1
+    local dest=$2
+    info "Running SCP command: $src to $dest"
+    SSHPASS=$TEAM_PASSWORD sshpass -e scp -o StrictHostKeyChecking=no "$src" "$dest"
 }
 
 ssh_with_pass() {
