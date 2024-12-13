@@ -26,59 +26,33 @@ error() {
 validate_and_parse_config() {
     log "Validating configuration..."
     
-    if [ ! -f "nodes.txt" ]; then
-        error "nodes.txt not found!"
-    fi
+    # First line is jump server IP
+    JUMP_SERVER=$(awk 'NR==1 {print $1}' nodes.txt)
+    info "Jump server IP: $JUMP_SERVER"
     
-    # Parse nodes.txt
-    JUMP_SERVER=$(head -n 1 nodes.txt)
-    if [ -z "$JUMP_SERVER" ]; then
-        error "Jump server IP not found in nodes.txt"
-    fi
-    info "Jump server: $JUMP_SERVER"
+    # Second line is jump node
+    read -r ip name <<< $(awk 'NR==2 {print $1, $2}' nodes.txt)
+    JUMP_NODE=$name
+    NODES[$name]=$ip
+    info "Jump node: $name ($ip)"
     
-    # Parse node information based on line positions
-    declare -g -A NODES
+    # Third line is name node
+    read -r ip name <<< $(awk 'NR==3 {print $1, $2}' nodes.txt)
+    NAME_NODE=$name
+    NODES[$name]=$ip
+    info "Name node: $name ($ip)"
     
-    # Read lines 2-5
-    JUMP_NODE_LINE=$(sed -n '2p' nodes.txt)
-    NAME_NODE_LINE=$(sed -n '3p' nodes.txt)
-    DN0_LINE=$(sed -n '4p' nodes.txt)
-    DN1_LINE=$(sed -n '5p' nodes.txt)
+    # Fourth line is data node 0
+    read -r ip name <<< $(awk 'NR==4 {print $1, $2}' nodes.txt)
+    DATA_NODE_0=$name
+    NODES[$name]=$ip
+    info "Data node 0: $name ($ip)"
     
-    # Parse each line into IP and hostname
-    if [[ $JUMP_NODE_LINE =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
-        NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
-        JUMP_NODE="${BASH_REMATCH[2]}"
-        info "Found jump node: $JUMP_NODE (${BASH_REMATCH[1]})"
-    fi
-    
-    if [[ $NAME_NODE_LINE =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
-        NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
-        NAME_NODE="${BASH_REMATCH[2]}"
-        info "Found name node: $NAME_NODE (${BASH_REMATCH[1]})"
-    fi
-    
-    if [[ $DN0_LINE =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
-        NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
-        DATA_NODE_0="${BASH_REMATCH[2]}"
-        info "Found data node 0: $DATA_NODE_0 (${BASH_REMATCH[1]})"
-    fi
-    
-    if [[ $DN1_LINE =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
-        NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
-        DATA_NODE_1="${BASH_REMATCH[2]}"
-        info "Found data node 1: $DATA_NODE_1 (${BASH_REMATCH[1]})"
-    fi
-    
-    # Validate that we found all required nodes
-    if [ -z "$NAME_NODE" ]; then
-        error "Name node not found in line 3 of nodes.txt"
-    fi
-    
-    if [ -z "$DATA_NODE_0" ] || [ -z "$DATA_NODE_1" ]; then
-        error "Data nodes not found in lines 4-5 of nodes.txt"
-    fi
+    # Fifth line is data node 1
+    read -r ip name <<< $(awk 'NR==5 {print $1, $2}' nodes.txt)
+    DATA_NODE_1=$name
+    NODES[$name]=$ip
+    info "Data node 1: $name ($ip)"
 }
 
 # Test connectivity to all nodes
