@@ -23,7 +23,12 @@ create_user() {
     local user=$1
     if ! id "$user" &>/dev/null; then
         echo "Creating user $user..."
-        sudo adduser "$user"
+        # Create user with no defaults to force prompts
+        sudo adduser --disabled-password "$user"
+        # Force password change
+        sudo passwd "$user"
+    else
+        echo "User $user already exists on this node."
     fi
 }
 
@@ -81,6 +86,7 @@ main() {
         echo "Error: Nodes file $nodes_file not found"
         exit 1
     fi
+    
     
     # Initialize temporary files
     : > /tmp/all_keys
