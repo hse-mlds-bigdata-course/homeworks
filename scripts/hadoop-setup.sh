@@ -34,15 +34,16 @@ error() {
 }
 
 # SSH wrapper function
+scp_with_pass() {
+    info "Running SCP command: $@"
+    SSHPASS=$TEAM_PASSWORD sshpass -e scp -o StrictHostKeyChecking=no "$@"
+}
+
 ssh_with_pass() {
     local host=$1
     shift
-    sshpass -e ssh -o StrictHostKeyChecking=no "team@$host" "$@"
-}
-
-# SCP wrapper function
-scp_with_pass() {
-    sshpass -e scp -o StrictHostKeyChecking=no "$@"
+    info "Running SSH command on $host: $@"
+    SSHPASS=$TEAM_PASSWORD sshpass -e ssh -o StrictHostKeyChecking=no "team@$host" "$@"
 }
 
 validate_and_parse_config() {
@@ -166,14 +167,6 @@ EOF
     rm -f temp_hosts
     
     info "Update hosts completed for $node"
-}
-
-# Also add debug output to ssh_with_pass function:
-ssh_with_pass() {
-    local host=$1
-    shift
-    info "Executing SSH command on $host: $@"
-    sshpass -e ssh -o StrictHostKeyChecking=no "team@$host" "$@"
 }
 
 
