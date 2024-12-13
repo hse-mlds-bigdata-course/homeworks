@@ -1,11 +1,8 @@
 #!/bin/bash
 
-# Function to create user
+# Function to create user with password from env variable
 create_user() {
     local user=$1
-    local node=$2
-    
-    echo "Setting up user $user on node $node"
     
     if id "$user" &>/dev/null; then
         echo "Removing existing $user user..."
@@ -16,62 +13,39 @@ create_user() {
     
     echo "Creating new $user user..."
     sudo useradd -m -s /bin/bash "$user"
-    echo "Please set password for $user on $node:"
-    sudo passwd "$user"
+    
+    # Create hashed password and set it
+    local hashed_password=$(openssl passwd -1 "$hadoop_pwd")
+    sudo usermod -p "$hashed_password" "$user"
+    
+    # Verify the password was set
+    echo "Verifying password setup..."
+    if ! echo "$hadoop_pwd" | sudo -S -u "$user" whoami >/dev/null 2>&1; then
+        echo "Warning: Password verification failed. You might need to set it manually with 'sudo passwd hadoop'"
+    fi
 }
 
 # Function to setup SSH keys
 setup_ssh_keys() {
     local user=$1
-    echo "Setting up SSH keys for $user..."
-    
-    # Clean up and create .ssh directory
     sudo rm -rf "/home/$user/.ssh"
     sudo -u "$user" mkdir -p "/home/$user/.ssh"
     sudo -u "$user" chmod 700 "/home/$user/.ssh"
-    
-    # Generate new keys
+    sudo -u "$user" touch "/home/$user/.ssh/known_hosts"
+    sudo -u "$user" chmod 600 "/home/$user/.ssh/known_hosts"
     sudo -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
-}
-
-# Function to distribute SSH keys
-distribute_keys() {
-    local user=$1
-    local nodes_file=$2
-    
-    echo "Collecting and distributing SSH keys..."
-    
-    # Create temporary authorized_keys file
-    local temp_auth_keys=$(mktemp)
-    
-    # Collect all public keys
-    while read -r ip name rest; do
-        if [[ "$name" =~ ^team-25 ]]; then  # Only process team-25 nodes
-            sudo -u "$user" ssh-keygen -R "$name" 2>/dev/null || true  # Remove old known hosts entries
-            sudo -u "$user" ssh-keyscan -H "$ip" >> "/home/$user/.ssh/known_hosts" 2>/dev/null
-            sudo cat "/home/$user/.ssh/id_ed25519.pub" >> "$temp_auth_keys"
-        fi
-    done < "$nodes_file"
-    
-    # Remove duplicates and set proper permissions
-    sort -u "$temp_auth_keys" > "/home/$user/.ssh/authorized_keys"
-    sudo chown "$user:$user" "/home/$user/.ssh/authorized_keys"
-    sudo chmod 600 "/home/$user/.ssh/authorized_keys"
-    
-    # Copy to other nodes
-    while read -r ip name rest; do
-        if [[ "$name" =~ ^team-25 ]]; then  # Only process team-25 nodes
-            echo "Copying keys to $name..."
-            sudo -u "$user" scp -o StrictHostKeyChecking=no "/home/$user/.ssh/authorized_keys" "$user@$ip:/home/$user/.ssh/authorized_keys"
-        fi
-    done < "$nodes_file"
-    
-    rm -f "$temp_auth_keys"
 }
 
 # Main execution
 main() {
     local nodes_file=$1
+    
+    # Check for hadoop_pwd environment variable
+    if [ -z "$hadoop_pwd" ]; then
+        echo "Error: hadoop_pwd environment variable is not set"
+        echo "Please set it first: export hadoop_pwd=your_password"
+        exit 1
+    fi
     
     # Check parameters
     if [ -z "$nodes_file" ]; then
@@ -85,27 +59,46 @@ main() {
         exit 1
     fi
     
-    # Generate hosts content and update /etc/hosts
-    echo "Updating /etc/hosts..."
-    local temp_hosts=$(mktemp)
-    tail -n +2 "$nodes_file" | awk '{print $1 "\t" $2}' > "$temp_hosts"
-    sudo cp "$temp_hosts" /etc/hosts
-    rm -f "$temp_hosts"
+    # Initialize temporary files
+    : > /tmp/all_keys
+    : > /tmp/hosts_content
     
-    # Process each node
-    while read -r ip name rest; do
-        if [[ "$name" =~ ^team-25 ]]; then  # Only process team-25 nodes
-            echo "Setting up node: $name ($ip)"
-            create_user "hadoop" "$name"
-            setup_ssh_keys "hadoop"
-        fi
-    done < "$nodes_file"
+    # Generate hosts content
+    tail -n +2 "$nodes_file" | awk '{print $1 "\t" $2}' > /tmp/hosts_content
+    
+    # Setup each node
+    tail -n +2 "$nodes_file" | while read -r ip name rest; do
+        echo "Setting up node: $name ($ip)"
+        
+        # Update /etc/hosts
+        echo "Updating /etc/hosts..."
+        sudo cp /tmp/hosts_content /etc/hosts
+        
+        # Create hadoop user
+        create_user "hadoop"
+        
+        # Setup SSH keys
+        echo "Setting up SSH keys..."
+        setup_ssh_keys "hadoop"
+        
+        # Collect the public key
+        sudo -u hadoop cat /home/hadoop/.ssh/id_ed25519.pub >> /tmp/all_keys
+    done
     
     # Distribute SSH keys
-    distribute_keys "hadoop" "$nodes_file"
+    echo "Distributing SSH keys to all nodes..."
+    sort -u /tmp/all_keys > /tmp/authorized_keys
+    
+    tail -n +2 "$nodes_file" | while read -r ip name rest; do
+        echo "Copying keys to $name..."
+        sudo -u hadoop bash -c "ssh-keyscan -H $name >> /home/hadoop/.ssh/known_hosts 2>/dev/null"
+        sudo -u hadoop scp /tmp/authorized_keys "hadoop@$name:/home/hadoop/.ssh/authorized_keys"
+    done
+    
+    # Cleanup
+    rm -f /tmp/all_keys /tmp/hosts_content /tmp/authorized_keys
     
     echo "Setup completed successfully!"
-    echo "Try connecting with: ssh hadoop@team-25-jn"
 }
 
 # Execute main function
