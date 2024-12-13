@@ -347,86 +347,175 @@
 
 #!/bin/bash
 
-# Function to create user - reads password from TEAM_PASSWORD
+# # Function to create user - reads password from TEAM_PASSWORD
+# create_user() {
+#     local user=$1
+#     local node=$2
+    
+#     if id "$user" &>/dev/null; then
+#         echo "Removing existing $user user..."
+#         printf "%s\n" "$TEAM_PASSWORD" | sudo -S pkill -u "$user" 2>/dev/null || true
+#         printf "%s\n" "$TEAM_PASSWORD" | sudo -S userdel -r "$user" 2>/dev/null || true
+#         sleep 1
+#     fi
+    
+#     echo "Creating new $user user..."
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S useradd -m -s /bin/bash "$user"
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S sh -c "echo '$user:$hadoop_pwd' | chpasswd"
+# }
+
+# # Function to setup SSH keys
+# setup_ssh_keys() {
+#     local user=$1
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S rm -rf "/home/$user/.ssh"
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" mkdir -p "/home/$user/.ssh"
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" chmod 700 "/home/$user/.ssh"
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" touch "/home/$user/.ssh/known_hosts"
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" chmod 600 "/home/$user/.ssh/known_hosts"
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
+# }
+
+# main() {
+#     local nodes_file=$1
+
+#     if [ -z "$hadoop_pwd" ] || [ -z "$TEAM_PASSWORD" ]; then
+#         echo "Please ensure both hadoop_pwd and TEAM_PASSWORD are set as environment variables"
+#         exit 1
+#     fi
+    
+#     if [ ! -f "$nodes_file" ]; then
+#         echo "Error: Nodes file $nodes_file not found"
+#         exit 1
+#     fi
+
+#     : > /tmp/all_keys
+#     : > /tmp/hosts_content
+
+#     tail -n +2 "$nodes_file" | awk '{print $1 "\t" $2}' > /tmp/hosts_content
+#     printf "%s\n" "$TEAM_PASSWORD" | sudo -S cp /tmp/hosts_content /etc/hosts
+
+#     echo "Phase 1: Creating hadoop users on all nodes..."
+#     tail -n +2 "$nodes_file" | while read -r ip name rest; do
+#         echo "Setting up node: $name ($ip)"
+#         # Double TTY (-tt) and correct variable expansion:
+#         ssh -tt "team@$ip" "
+#             export hadoop_pwd=\"${hadoop_pwd}\"
+#             export TEAM_PASSWORD=\"${TEAM_PASSWORD}\"
+#             $(declare -f create_user)
+#             create_user hadoop \"$name\"
+#         "
+#     done
+
+#     # PHASE 2: Setup SSH for all nodes
+#     echo "Phase 2: Setting up SSH connections..."
+#     tail -n +2 "$nodes_file" | while read -r ip name rest; do
+#         echo "Setting up SSH for node: $name ($ip)"
+#         ssh -t "team@$ip" "
+#             export hadoop_pwd='$hadoop_pwd'
+#             export TEAM_PASSWORD='$TEAM_PASSWORD'
+#             $(declare -f setup_ssh_keys)
+#             setup_ssh_keys hadoop
+#         "
+#         ssh -t "team@$ip" "sudo -u hadoop cat /home/hadoop/.ssh/id_ed25519.pub" >> /tmp/all_keys
+#     done
+
+#     # Distribute the keys
+#     distribute_keys "$nodes_file"
+
+#     # Cleanup
+#     rm -f /tmp/all_keys /tmp/hosts_content /tmp/authorized_keys
+
+#     echo "Setup completed successfully!"
+#     echo "Try: ssh hadoop@team-25-nn"
+# }
+
+# main "$1"
+
+
+#!/bin/bash
+
 create_user() {
     local user=$1
     local node=$2
-    
+
     if id "$user" &>/dev/null; then
         echo "Removing existing $user user..."
-        printf "%s\n" "$TEAM_PASSWORD" | sudo -S pkill -u "$user" 2>/dev/null || true
-        printf "%s\n" "$TEAM_PASSWORD" | sudo -S userdel -r "$user" 2>/dev/null || true
+        sudo pkill -u "$user" 2>/dev/null || true
+        sudo userdel -r "$user" 2>/dev/null || true
         sleep 1
     fi
-    
+
     echo "Creating new $user user..."
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S useradd -m -s /bin/bash "$user"
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S sh -c "echo '$user:$hadoop_pwd' | chpasswd"
+    sudo useradd -m -s /bin/bash "$user"
+    echo "$user:$hadoop_pwd" | sudo chpasswd
 }
 
-# Function to setup SSH keys
 setup_ssh_keys() {
     local user=$1
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S rm -rf "/home/$user/.ssh"
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" mkdir -p "/home/$user/.ssh"
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" chmod 700 "/home/$user/.ssh"
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" touch "/home/$user/.ssh/known_hosts"
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" chmod 600 "/home/$user/.ssh/known_hosts"
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
+    sudo rm -rf "/home/$user/.ssh"
+    sudo -u "$user" mkdir -p "/home/$user/.ssh"
+    sudo -u "$user" chmod 700 "/home/$user/.ssh"
+    sudo -u "$user" touch "/home/$user/.ssh/known_hosts"
+    sudo -u "$user" chmod 600 "/home/$user/.ssh/known_hosts"
+    sudo -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
 }
 
 main() {
-    local nodes_file=$1
+    local nodes_file="$1"
 
-    if [ -z "$hadoop_pwd" ] || [ -z "$TEAM_PASSWORD" ]; then
-        echo "Please ensure both hadoop_pwd and TEAM_PASSWORD are set as environment variables"
+    if [ -z "$hadoop_pwd" ]; then
+        echo "Please set hadoop_pwd: export hadoop_pwd=your_hadoop_pwd"
         exit 1
     fi
-    
+
     if [ ! -f "$nodes_file" ]; then
-        echo "Error: Nodes file $nodes_file not found"
+        echo "Nodes file not found!"
         exit 1
     fi
 
-    : > /tmp/all_keys
-    : > /tmp/hosts_content
-
-    tail -n +2 "$nodes_file" | awk '{print $1 "\t" $2}' > /tmp/hosts_content
-    printf "%s\n" "$TEAM_PASSWORD" | sudo -S cp /tmp/hosts_content /etc/hosts
+    # Update /etc/hosts locally
+    tail -n +2 "$nodes_file" | awk '{print $1 "\t" $2}' | sudo tee /etc/hosts > /dev/null
 
     echo "Phase 1: Creating hadoop users on all nodes..."
     tail -n +2 "$nodes_file" | while read -r ip name rest; do
         echo "Setting up node: $name ($ip)"
-        # Double TTY (-tt) and correct variable expansion:
-        ssh -tt "team@$ip" "
-            export hadoop_pwd=\"${hadoop_pwd}\"
-            export TEAM_PASSWORD=\"${TEAM_PASSWORD}\"
+        # SSH with -t so sudo can prompt for password
+        ssh -t "team@$ip" "
+            export hadoop_pwd='$hadoop_pwd'
             $(declare -f create_user)
-            create_user hadoop \"$name\"
+            create_user hadoop '$name'
         "
     done
-    
-    # PHASE 2: Setup SSH for all nodes
-    echo "Phase 2: Setting up SSH connections..."
+
+    echo "Phase 2: Setting up SSH keys..."
+    : > /tmp/all_keys
     tail -n +2 "$nodes_file" | while read -r ip name rest; do
         echo "Setting up SSH for node: $name ($ip)"
         ssh -t "team@$ip" "
             export hadoop_pwd='$hadoop_pwd'
-            export TEAM_PASSWORD='$TEAM_PASSWORD'
             $(declare -f setup_ssh_keys)
             setup_ssh_keys hadoop
         "
+        # Collect public key
         ssh -t "team@$ip" "sudo -u hadoop cat /home/hadoop/.ssh/id_ed25519.pub" >> /tmp/all_keys
     done
 
-    # Distribute the keys
-    distribute_keys "$nodes_file"
+    # Distribute keys (will also ask for password)
+    echo "Distributing keys..."
+    sort -u /tmp/all_keys > /tmp/authorized_keys
+    sudo chown hadoop:hadoop /tmp/authorized_keys
+    sudo chmod 600 /tmp/authorized_keys
 
-    # Cleanup
-    rm -f /tmp/all_keys /tmp/hosts_content /tmp/authorized_keys
+    tail -n +2 "$nodes_file" | while read -r ip name rest; do
+        echo "Copying keys to $ip ($name)..."
+        ssh -t "team@$ip" "sudo -u hadoop mkdir -p /home/hadoop/.ssh"
+        scp /tmp/authorized_keys "team@$ip:/tmp/authorized_keys"
+        ssh -t "team@$ip" "sudo cp /tmp/authorized_keys /home/hadoop/.ssh/authorized_keys && sudo chown hadoop:hadoop /home/hadoop/.ssh/authorized_keys && sudo chmod 600 /home/hadoop/.ssh/authorized_keys && sudo rm /tmp/authorized_keys"
+    done
 
-    echo "Setup completed successfully!"
-    echo "Try: ssh hadoop@team-25-nn"
+    rm -f /tmp/all_keys /tmp/authorized_keys
+
+    echo "Setup completed!"
 }
 
 main "$1"
