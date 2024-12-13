@@ -149,7 +149,7 @@ update_hosts() {
             
             # Copy file and update with sudo -t for terminal allocation
             scp temp_hosts "team@$ip:/tmp/hosts"
-            ssh -t "team@$ip" "sudo cat /tmp/hosts > /etc/hosts && rm /tmp/hosts"
+            ssh -t "team@$ip" "sudo bash -c 'cat /tmp/hosts > /etc/hosts' && rm /tmp/hosts"
             
             if [ $? -ne 0 ]; then
                 error "Failed to update hosts on $node"
