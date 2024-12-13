@@ -128,25 +128,14 @@ update_hosts() {
         echo "${NODES[$n]} $n" >> temp_hosts
     done
     
-    # Copy the temporary hosts file
+    # Copy to remote and update hosts file with sudo
     scp_with_pass temp_hosts "team@$ip:/tmp/hosts"
+    ssh_with_pass "$ip" "sudo -S bash -c 'cat /tmp/hosts > /etc/hosts' <<< $TEAM_PASSWORD"
     
-    # Use a heredoc to create a temporary script that will be executed with sudo
-    ssh_with_pass "$ip" "cat > /tmp/update_hosts.sh << 'EOL'
-#!/bin/bash
-cat /tmp/hosts > /etc/hosts
-rm -f /tmp/hosts
-rm -f /tmp/update_hosts.sh
-EOL"
-    
-    # Make the script executable and run it with sudo
-    ssh_with_pass "$ip" "chmod +x /tmp/update_hosts.sh && echo $TEAM_PASSWORD | sudo -S /tmp/update_hosts.sh"
-    
-    # Clean up local temporary file
+    # Cleanup
+    ssh_with_pass "$ip" "rm /tmp/hosts"
     rm -f temp_hosts
 }
-
-# Rest of your functions here...
 
 # Main execution
 main() {
