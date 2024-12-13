@@ -36,6 +36,25 @@ setup_ssh_keys() {
     sudo -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
 }
 
+# Function to distribute SSH keys
+distribute_keys() {
+    local nodes_file=$1
+    echo "Distributing SSH keys to all nodes..."
+    
+    # Sort and remove duplicates from collected keys
+    sort -u /tmp/all_keys > /tmp/authorized_keys
+    sudo chown hadoop:hadoop /tmp/authorized_keys
+    sudo chmod 600 /tmp/authorized_keys
+    
+    # Distribute to all nodes using IP addresses
+    tail -n +2 "$nodes_file" | while read -r ip name rest; do
+        echo "Copying keys to $ip ($name)..."
+        # Use IP address instead of hostname
+        sudo -u hadoop ssh-keyscan -H "$ip" >> /home/hadoop/.ssh/known_hosts 2>/dev/null
+        sudo -u hadoop scp -o StrictHostKeyChecking=no /tmp/authorized_keys "hadoop@$ip:/home/hadoop/.ssh/authorized_keys"
+    done
+}
+
 # Main execution
 main() {
     local nodes_file=$1
@@ -87,13 +106,8 @@ main() {
     
     # Distribute SSH keys
     echo "Distributing SSH keys to all nodes..."
-    sort -u /tmp/all_keys > /tmp/authorized_keys
     
-    tail -n +2 "$nodes_file" | while read -r ip name rest; do
-        echo "Copying keys to $name..."
-        sudo -u hadoop bash -c "ssh-keyscan -H $name >> /home/hadoop/.ssh/known_hosts 2>/dev/null"
-        sudo -u hadoop scp /tmp/authorized_keys "hadoop@$name:/home/hadoop/.ssh/authorized_keys"
-    done
+    distribute_keys "$nodes_file"
     
     # Cleanup
     rm -f /tmp/all_keys /tmp/hosts_content /tmp/authorized_keys
