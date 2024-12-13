@@ -13,7 +13,16 @@ create_user() {
     
     echo "Creating new $user user..."
     sudo useradd -m -s /bin/bash "$user"
-    echo "$user:$hadoop_pwd" | sudo chpasswd
+    
+    # Create hashed password and set it
+    local hashed_password=$(openssl passwd -1 "$hadoop_pwd")
+    sudo usermod -p "$hashed_password" "$user"
+    
+    # Verify the password was set
+    echo "Verifying password setup..."
+    if ! echo "$hadoop_pwd" | sudo -S -u "$user" whoami >/dev/null 2>&1; then
+        echo "Warning: Password verification failed. You might need to set it manually with 'sudo passwd hadoop'"
+    fi
 }
 
 # Function to setup SSH keys
