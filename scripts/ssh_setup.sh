@@ -38,32 +38,12 @@ create_user() {
     fi
     
     echo "Creating new $user user..."
-    # Create new user with locked password initially
+    # Create new user
     sudo useradd -m -s /bin/bash "$user"
     
-    echo "Setting password for $user..."
-    # Get password securely
-    local password1 password2
-    while true; do
-        echo -n "Enter password for $user: "
-        read -s password1
-        echo
-        echo -n "Confirm password: "
-        read -s password2
-        echo
-        
-        if [ "$password1" = "$password2" ]; then
-            echo "$user:$password1" | sudo chpasswd
-            if [ $? -eq 0 ]; then
-                echo "Password set successfully"
-                break
-            else
-                echo "Failed to set password, please try again"
-            fi
-        else
-            echo "Passwords don't match, please try again"
-        fi
-    done
+    echo "Please set password for $user using passwd..."
+    # Use interactive passwd command
+    sudo passwd "$user"
 }
 
 # Main setup function
