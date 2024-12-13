@@ -229,14 +229,16 @@
 
 #!/bin/bash
 
+#!/bin/bash
+
 # Function to create user on a remote node
 create_user_remote() {
     local ip=$1
     echo "Creating hadoop user on node with IP $ip..."
     
-    # SSH to node as team user and create hadoop user
-    ssh "team@$ip" "
-        if id hadoop &>/dev/null; then
+    # SSH with pseudo-terminal allocation (-t) for sudo password prompt
+    ssh -t "team@$ip" "
+        if sudo id hadoop &>/dev/null; then
             echo 'Removing existing hadoop user...'
             sudo pkill -u hadoop 2>/dev/null || true
             sudo userdel -r hadoop 2>/dev/null || true
@@ -244,7 +246,7 @@ create_user_remote() {
         fi
         echo 'Creating new hadoop user...'
         sudo useradd -m -s /bin/bash hadoop
-        echo 'hadoop:$hadoop_pwd' | sudo chpasswd
+        echo hadoop:$hadoop_pwd | sudo chpasswd
     "
 }
 
@@ -253,7 +255,8 @@ setup_ssh_keys() {
     local ip=$1
     echo "Setting up SSH keys on node with IP $ip..."
     
-    ssh "team@$ip" "
+    ssh -t "team@$ip" "
+        sudo rm -rf /home/hadoop/.ssh
         sudo -u hadoop mkdir -p /home/hadoop/.ssh
         sudo -u hadoop chmod 700 /home/hadoop/.ssh
         sudo -u hadoop ssh-keygen -t ed25519 -f /home/hadoop/.ssh/id_ed25519 -N ''
@@ -268,7 +271,7 @@ distribute_keys() {
     
     # Create temporary directory with proper permissions
     local temp_dir=$(mktemp -d)
-    sudo chown $(id -u):$(id -g) "$temp_dir"
+    chmod 700 "$temp_dir"
     
     # Sort and remove duplicates from collected keys
     sort -u /tmp/all_keys > "$temp_dir/authorized_keys"
@@ -278,10 +281,11 @@ distribute_keys() {
     tail -n +2 "$nodes_file" | while read -r ip name rest; do
         echo "Copying keys to $ip..."
         scp -o StrictHostKeyChecking=no "$temp_dir/authorized_keys" "team@$ip:/tmp/authorized_keys"
-        ssh "team@$ip" "
-            sudo mv /tmp/authorized_keys /home/hadoop/.ssh/authorized_keys
+        ssh -t "team@$ip" "
+            sudo cp /tmp/authorized_keys /home/hadoop/.ssh/authorized_keys
             sudo chown hadoop:hadoop /home/hadoop/.ssh/authorized_keys
             sudo chmod 600 /home/hadoop/.ssh/authorized_keys
+            rm /tmp/authorized_keys
         "
     done
     
@@ -312,18 +316,13 @@ main() {
         exit 1
     fi
     
-    # Create temporary files with proper permissions
-    local temp_dir=$(mktemp -d)
-    sudo chown $(id -u):$(id -g) "$temp_dir"
-    
-    # Initialize files
-    touch "$temp_dir/all_keys"
-    touch "$temp_dir/hosts_content"
-    chmod 600 "$temp_dir/all_keys"
+    # Initialize temporary files
+    : > /tmp/all_keys
+    : > /tmp/hosts_content
     
     # Generate hosts content
-    tail -n +2 "$nodes_file" | awk '{print $1 "\t" $2}' > "$temp_dir/hosts_content"
-    sudo cp "$temp_dir/hosts_content" /etc/hosts
+    tail -n +2 "$nodes_file" | awk '{print $1 "\t" $2}' > /tmp/hosts_content
+    sudo cp /tmp/hosts_content /etc/hosts
     
     # PHASE 1: Create hadoop users on all nodes
     echo "Phase 1: Creating hadoop users on all nodes..."
@@ -337,21 +336,14 @@ main() {
         setup_ssh_keys "$ip"
     done
     
-    # Copy all_keys to /tmp for distribute_keys
-    cp "$temp_dir/all_keys" /tmp/all_keys
-    
     # Distribute the keys
     distribute_keys "$nodes_file"
     
     # Cleanup
-    rm -rf "$temp_dir"
-    rm -f /tmp/all_keys
+    rm -f /tmp/all_keys /tmp/hosts_content
     
     echo "Setup completed successfully!"
-    echo "Try testing connections:"
-    tail -n +2 "$nodes_file" | while read -r ip name rest; do
-        echo "ssh hadoop@$ip"
-    done
+    echo "Try testing: ssh hadoop@192.168.1.103"
 }
 
 # Execute main function
