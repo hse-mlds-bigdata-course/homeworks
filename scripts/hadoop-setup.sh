@@ -37,33 +37,48 @@ validate_and_parse_config() {
     fi
     info "Jump server: $JUMP_SERVER"
     
-    # Parse node information
+    # Parse node information based on line positions
     declare -g -A NODES
-    while read -r line; do
-        # Trim any whitespace
-        line=$(echo "$line" | tr -s ' \t')
-        if [[ $line =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
-            NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
-            info "Found node: ${BASH_REMATCH[2]} (${BASH_REMATCH[1]})"
-        fi
-    done < <(tail -n +2 nodes.txt)
     
-    # Validate required nodes
-    NAME_NODE=""
-    for node in "${!NODES[@]}"; do
-        # Debug output
-        info "Checking node: '$node'"
-        if [[ "$node" == *"nn"* ]]; then
-            NAME_NODE=$node
-            info "Found name node: $node"
-            break
-        fi
-    done
+    # Read lines 2-5
+    JUMP_NODE_LINE=$(sed -n '2p' nodes.txt)
+    NAME_NODE_LINE=$(sed -n '3p' nodes.txt)
+    DN0_LINE=$(sed -n '4p' nodes.txt)
+    DN1_LINE=$(sed -n '5p' nodes.txt)
     
-    if [ -z "$NAME_NODE" ]; then
-        error "Name node not found in nodes.txt (Looking for 'nn' in node name)"
+    # Parse each line into IP and hostname
+    if [[ $JUMP_NODE_LINE =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
+        NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
+        JUMP_NODE="${BASH_REMATCH[2]}"
+        info "Found jump node: $JUMP_NODE (${BASH_REMATCH[1]})"
     fi
-    info "Name node: $NAME_NODE (${NODES[$NAME_NODE]})"
+    
+    if [[ $NAME_NODE_LINE =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
+        NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
+        NAME_NODE="${BASH_REMATCH[2]}"
+        info "Found name node: $NAME_NODE (${BASH_REMATCH[1]})"
+    fi
+    
+    if [[ $DN0_LINE =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
+        NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
+        DATA_NODE_0="${BASH_REMATCH[2]}"
+        info "Found data node 0: $DATA_NODE_0 (${BASH_REMATCH[1]})"
+    fi
+    
+    if [[ $DN1_LINE =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
+        NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
+        DATA_NODE_1="${BASH_REMATCH[2]}"
+        info "Found data node 1: $DATA_NODE_1 (${BASH_REMATCH[1]})"
+    fi
+    
+    # Validate that we found all required nodes
+    if [ -z "$NAME_NODE" ]; then
+        error "Name node not found in line 3 of nodes.txt"
+    fi
+    
+    if [ -z "$DATA_NODE_0" ] || [ -z "$DATA_NODE_1" ]; then
+        error "Data nodes not found in lines 4-5 of nodes.txt"
+    fi
 }
 
 # Test connectivity to all nodes
