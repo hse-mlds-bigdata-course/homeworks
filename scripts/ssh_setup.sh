@@ -77,6 +77,7 @@ main() {
     if [ -z "$nodes_file" ] || [ -z "$user_password" ]; then
         echo "Usage: $0 <nodes_file> <hadoop_user_password>"
         exit 1
+    fi
     
     # Initialize temporary files
     : > /tmp/all_keys
