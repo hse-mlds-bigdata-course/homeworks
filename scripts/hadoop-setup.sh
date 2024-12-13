@@ -141,12 +141,13 @@ update_hosts() {
 main() {
     log "Starting Hadoop cluster setup..."
     validate_and_parse_config
-    test_connectivity
     
     for node in "${!NODES[@]}"; do
         local ip="${NODES[$node]}"
         update_hosts "$ip" "$node"
     done
+
+    test_connectivity
     
     # Rest of your setup...
 }
