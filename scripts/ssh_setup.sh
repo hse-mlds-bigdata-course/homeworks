@@ -29,16 +29,25 @@ setup_ssh_keys() {
 # Function to create user if not exists
 create_user() {
     local user=$1
-    if ! id "$user" &>/dev/null; then
-        echo "Creating user $user..."
-        # Create user with minimal interaction
-        sudo useradd -m -s /bin/bash "$user"
-        # Set up password
-        echo "Setting password for $user"
-        sudo passwd "$user"
-    else
-        echo "User $user already exists on this node."
+    
+    # Remove user if exists (including home directory)
+    if id "$user" &>/dev/null; then
+        echo "Removing existing $user user..."
+        sudo userdel -r "$user" 2>/dev/null || true
     fi
+    
+    echo "Creating user $user..."
+    # Create new user
+    sudo useradd -m -s /bin/bash "$user"
+    
+    # Set password with manual entry
+    while true; do
+        if sudo passwd "$user"; then
+            break
+        else
+            echo "Password setting failed, please try again..."
+        fi
+    done
 }
 
 # Main setup function
