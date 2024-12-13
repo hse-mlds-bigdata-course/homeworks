@@ -147,9 +147,9 @@ update_hosts() {
         if [[ "$node" != *"jn"* ]]; then  # Skip jump node as it's already done
             info "Updating hosts on $node ($ip)..."
             
-            # Regular SSH and SCP commands that will prompt for password
+            # Copy file and update with sudo -t for terminal allocation
             scp temp_hosts "team@$ip:/tmp/hosts"
-            ssh "team@$ip" "sudo bash -c 'cat /tmp/hosts > /etc/hosts && rm -f /tmp/hosts'"
+            ssh -t "team@$ip" "sudo cat /tmp/hosts > /etc/hosts && rm /tmp/hosts"
             
             if [ $? -ne 0 ]; then
                 error "Failed to update hosts on $node"
