@@ -34,7 +34,7 @@ validate_and_parse_config() {
     JUMP_SERVER=$(head -n 1 nodes.txt)
     if [ -z "$JUMP_SERVER" ]; then
         error "Jump server IP not found in nodes.txt"
-    }
+    fi  # Changed '}' to 'fi'
     info "Jump server: $JUMP_SERVER"
     
     # Parse node information
@@ -57,7 +57,7 @@ validate_and_parse_config() {
     
     if [ -z "$NAME_NODE" ]; then
         error "Name node not found in nodes.txt"
-    }
+    fi  # Changed '}' to 'fi'
     info "Name node: $NAME_NODE (${NODES[$NAME_NODE]})"
 }
 
