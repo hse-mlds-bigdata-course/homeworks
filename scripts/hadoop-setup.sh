@@ -49,39 +49,46 @@ validate_and_parse_config() {
     log "Validating configuration..."
     
     # First line is jump server IP
-    JUMP_SERVER=$(head -n 1 nodes.txt)
+    JUMP_SERVER=$(head -n 1 nodes.txt | tr -d '\r')
     info "Jump server IP: $JUMP_SERVER"
     
     # Initialize NODES array
     declare -g -A NODES
     
-    # Second line is jump node
-    JUMP_LINE=$(sed -n '2p' nodes.txt)
-    JUMP_NODE_IP=$(echo "$JUMP_LINE" | awk '{print $1}')
-    JUMP_NODE=$(echo "$JUMP_LINE" | awk '{print $2}')
-    NODES[$JUMP_NODE]=$JUMP_NODE_IP
-    info "Jump node: $JUMP_NODE ($JUMP_NODE_IP)"
-    
-    # Third line is name node
-    NAME_LINE=$(sed -n '3p' nodes.txt)
-    NAME_NODE_IP=$(echo "$NAME_LINE" | awk '{print $1}')
-    NAME_NODE=$(echo "$NAME_LINE" | awk '{print $2}')
-    NODES[$NAME_NODE]=$NAME_NODE_IP
-    info "Name node: $NAME_NODE ($NAME_NODE_IP)"
-    
-    # Fourth line is data node 0
-    DN0_LINE=$(sed -n '4p' nodes.txt)
-    DATA_NODE_0_IP=$(echo "$DN0_LINE" | awk '{print $1}')
-    DATA_NODE_0=$(echo "$DN0_LINE" | awk '{print $2}')
-    NODES[$DATA_NODE_0]=$DATA_NODE_0_IP
-    info "Data node 0: $DATA_NODE_0 ($DATA_NODE_0_IP)"
-    
-    # Fifth line is data node 1
-    DN1_LINE=$(sed -n '5p' nodes.txt)
-    DATA_NODE_1_IP=$(echo "$DN1_LINE" | awk '{print $1}')
-    DATA_NODE_1=$(echo "$DN1_LINE" | awk '{print $2}')
-    NODES[$DATA_NODE_1]=$DATA_NODE_1_IP
-    info "Data node 1: $DATA_NODE_1 ($DATA_NODE_1_IP)"
+    # Parse remaining lines
+    local i=0
+    while IFS= read -r line || [ -n "$line" ]; do
+        i=$((i+1))
+        if [ $i -eq 1 ]; then continue; fi  # Skip first line
+        
+        # Clean the line and split into IP and hostname
+        local clean_line=$(echo "$line" | tr -d '\r')
+        local ip=$(echo "$clean_line" | awk '{print $1}')
+        local hostname=$(echo "$clean_line" | awk '{print $2}')
+        
+        case $i in
+            2)
+                JUMP_NODE=$hostname
+                NODES[$hostname]=$ip
+                info "Jump node: $hostname ($ip)"
+                ;;
+            3)
+                NAME_NODE=$hostname
+                NODES[$hostname]=$ip
+                info "Name node: $hostname ($ip)"
+                ;;
+            4)
+                DATA_NODE_0=$hostname
+                NODES[$hostname]=$ip
+                info "Data node 0: $hostname ($ip)"
+                ;;
+            5)
+                DATA_NODE_1=$hostname
+                NODES[$hostname]=$ip
+                info "Data node 1: $hostname ($ip)"
+                ;;
+        esac
+    done < nodes.txt
 }
 
 test_connectivity() {
@@ -91,13 +98,15 @@ test_connectivity() {
         local ip="${NODES[$node]}"
         info "Testing connection to $node ($ip)"
         
+        # Test ping
         if ! ping -c 1 "$ip" > /dev/null 2>&1; then
             error "Cannot ping $node ($ip)"
             continue
         fi
         
-        if ! timeout 5 ssh -o BatchMode=yes -o StrictHostKeyChecking=no "team@$ip" "echo 'Connected'" > /dev/null 2>&1; then
-            error "Cannot SSH to $node ($ip). Please check SSH access and password."
+        # Test SSH with sshpass
+        if ! sshpass -e ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "team@$ip" echo "SSH test successful" > /dev/null 2>&1; then
+            error "Failed to SSH to $node ($ip)"
             continue
         fi
         
