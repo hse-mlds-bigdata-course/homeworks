@@ -26,25 +26,12 @@ setup_ssh_keys() {
     sudo -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
 }
 
-# Function to create user if not exists
-create_user() {
-    local user=$1
-    
-    if id "$user" &>/dev/null; then
-        echo "Removing existing $user user..."
-        sudo pkill -u "$user" 2>/dev/null || true  # Kill any processes
-        sudo userdel -r "$user" 2>/dev/null || true
-        sleep 1  # Give system time to clean up
-    fi
-    
-    echo "Creating new $user user..."
-    # Create new user
-    sudo useradd -m -s /bin/bash "$user"
-    
-    echo "Please set password for $user using passwd..."
-    # Use interactive passwd command
-    sudo passwd "$user"
-}
+
+# Check for expect
+if ! command -v expect >/dev/null 2>&1; then
+    echo "The 'expect' package is required. Installing..."
+    sudo apt-get update && sudo apt-get install -y expect
+fi
 
 # Function to get password securely
 get_password() {
@@ -66,8 +53,7 @@ get_password() {
     done
 }
 
-
-# Function to create user with provided password
+# Function to create user with expect script
 create_user() {
     local user=$1
     local password=$2
@@ -82,14 +68,15 @@ create_user() {
     echo "Creating new $user user..."
     sudo useradd -m -s /bin/bash "$user"
     
-    # Set password non-interactively
-    echo "$user:$password" | sudo chpasswd
-    if [ $? -eq 0 ]; then
-        echo "Password set successfully for $user"
-    else
-        echo "Failed to set password for $user"
-        exit 1
-    fi
+    # Use expect to handle the interactive password prompt
+    expect -f - <<EOF
+spawn sudo passwd $user
+expect "New password: "
+send "$password\r"
+expect "Retype new password: "
+send "$password\r"
+expect eof
+EOF
 }
 
 # Main setup function
