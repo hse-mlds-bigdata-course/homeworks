@@ -38,14 +38,14 @@ scp_with_pass() {
     local src=$1
     local dest=$2
     info "Running SCP command: $src to $dest"
-    SSHPASS=$TEAM_PASSWORD sshpass -e scp -o StrictHostKeyChecking=no "$src" "$dest"
+    sshpass -p "$TEAM_PASSWORD" scp -o StrictHostKeyChecking=no "$src" "$dest"
 }
 
 ssh_with_pass() {
     local host=$1
     shift
     info "Running SSH command on $host: $@"
-    SSHPASS=$TEAM_PASSWORD sshpass -e ssh -o StrictHostKeyChecking=no "team@$host" "$@"
+    sshpass -p "$TEAM_PASSWORD" ssh -o StrictHostKeyChecking=no "team@$host" "$@"
 }
 
 validate_and_parse_config() {
