@@ -316,7 +316,8 @@ main() {
         echo "Setting up node: $name ($ip)"
         # First SSH to the node and then create user
         echo "SSHing to $name..."
-        ssh "team@$name" "export hadoop_pwd='$hadoop_pwd' && $(declare -f create_user) && create_user hadoop $name"
+        # ssh "team@$name" "export hadoop_pwd='$hadoop_pwd' && $(declare -f create_user) && create_user hadoop $name"
+        ssh -o StrictHostKeyChecking=no "team@$ip" "export hadoop_pwd='$hadoop_pwd'; $(declare -f create_user); create_user hadoop '$name'"
     done
     
     # PHASE 2: Setup SSH for all nodes
