@@ -107,25 +107,6 @@ test_connectivity() {
     log "All nodes are reachable"
 }
 
-test_connectivity() {
-    log "Testing connectivity to all nodes..."
-    
-    for node in "${!NODES[@]}"; do
-        local ip="${NODES[$node]}"
-        info "Testing connection to $node ($ip)"
-        
-        if ! ping -c 1 "$ip" > /dev/null 2>&1; then
-            error "Cannot ping $node ($ip)"
-        fi
-        
-        if ! ssh_with_pass "$ip" "echo 'SSH connection successful'" > /dev/null 2>&1; then
-            error "Cannot SSH to $node ($ip)"
-        fi
-    done
-    
-    log "All nodes are reachable"
-}
-
 update_hosts() {
     local ip=$1
     local node=$2
