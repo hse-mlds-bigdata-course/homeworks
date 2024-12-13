@@ -146,13 +146,25 @@ update_hosts() {
         local ip="${NODES[$node]}"
         if [[ "$node" != *"jn"* ]]; then  # Skip jump node as it's already done
             info "Updating hosts on $node ($ip)..."
-            sshpass -p "$TEAM_PASSWORD" scp -o StrictHostKeyChecking=no temp_hosts "team@$ip:/tmp/hosts"
-            if [ $? -ne 0 ]; then
-                error "Failed to copy hosts file to $node"
-                continue
-            fi
             
-            sshpass -p "$TEAM_PASSWORD" ssh -o StrictHostKeyChecking=no "team@$ip" "echo '$TEAM_PASSWORD' | sudo -S bash -c 'cat /tmp/hosts > /etc/hosts && rm -f /tmp/hosts'"
+            # Create a script that will be executed on remote host
+            cat > update_hosts.sh << EOF
+#!/bin/bash
+echo "$TEAM_PASSWORD" | sudo -S true
+if [ \$? -eq 0 ]; then
+    sudo bash -c 'cat /tmp/hosts > /etc/hosts'
+    rm -f /tmp/hosts
+else
+    echo "Sudo access failed"
+    exit 1
+fi
+EOF
+            
+            # Copy files and execute
+            sshpass -p "$TEAM_PASSWORD" scp -o StrictHostKeyChecking=no temp_hosts "team@$ip:/tmp/hosts"
+            sshpass -p "$TEAM_PASSWORD" scp -o StrictHostKeyChecking=no update_hosts.sh "team@$ip:/tmp/update_hosts.sh"
+            sshpass -p "$TEAM_PASSWORD" ssh -o StrictHostKeyChecking=no "team@$ip" "chmod +x /tmp/update_hosts.sh && /tmp/update_hosts.sh && rm -f /tmp/update_hosts.sh"
+            
             if [ $? -ne 0 ]; then
                 error "Failed to update hosts on $node"
             else
@@ -162,7 +174,7 @@ update_hosts() {
     done
     
     # Cleanup
-    rm -f temp_hosts
+    rm -f temp_hosts update_hosts.sh
 }
 
 
