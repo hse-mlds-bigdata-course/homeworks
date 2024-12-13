@@ -13,9 +13,14 @@ generate_hosts_content() {
 # Function to setup SSH keys
 setup_ssh_keys() {
     local user=$1
-    if [ ! -f "/home/$user/.ssh/id_ed25519" ]; then
-        sudo -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
-    fi
+    # Remove existing keys if they exist
+    sudo -u "$user" rm -f "/home/$user/.ssh/id_ed25519" "/home/$user/.ssh/id_ed25519.pub"
+    # Create .ssh directory if it doesn't exist
+    sudo -u "$user" mkdir -p "/home/$user/.ssh"
+    # Set proper permissions
+    sudo -u "$user" chmod 700 "/home/$user/.ssh"
+    # Generate new keys
+    sudo -u "$user" ssh-keygen -t ed25519 -f "/home/$user/.ssh/id_ed25519" -N ""
 }
 
 # Function to create user if not exists
@@ -86,7 +91,6 @@ main() {
         echo "Error: Nodes file $nodes_file not found"
         exit 1
     fi
-    
     
     # Initialize temporary files
     : > /tmp/all_keys
