@@ -27,32 +27,39 @@ validate_and_parse_config() {
     log "Validating configuration..."
     
     # First line is jump server IP
-    JUMP_SERVER=$(awk 'NR==1 {print $1}' nodes.txt)
+    JUMP_SERVER=$(head -n 1 nodes.txt)
     info "Jump server IP: $JUMP_SERVER"
     
+    # Initialize NODES array
+    declare -g -A NODES
+    
     # Second line is jump node
-    read -r ip name <<< $(awk 'NR==2 {print $1, $2}' nodes.txt)
-    JUMP_NODE=$name
-    NODES[$name]=$ip
-    info "Jump node: $name ($ip)"
+    JUMP_LINE=$(sed -n '2p' nodes.txt)
+    JUMP_NODE_IP=$(echo "$JUMP_LINE" | cut -d' ' -f1)
+    JUMP_NODE=$(echo "$JUMP_LINE" | cut -d' ' -f2)
+    NODES[$JUMP_NODE]=$JUMP_NODE_IP
+    info "Jump node: $JUMP_NODE ($JUMP_NODE_IP)"
     
     # Third line is name node
-    read -r ip name <<< $(awk 'NR==3 {print $1, $2}' nodes.txt)
-    NAME_NODE=$name
-    NODES[$name]=$ip
-    info "Name node: $name ($ip)"
+    NAME_LINE=$(sed -n '3p' nodes.txt)
+    NAME_NODE_IP=$(echo "$NAME_LINE" | cut -d' ' -f1)
+    NAME_NODE=$(echo "$NAME_LINE" | cut -d' ' -f2)
+    NODES[$NAME_NODE]=$NAME_NODE_IP
+    info "Name node: $NAME_NODE ($NAME_NODE_IP)"
     
     # Fourth line is data node 0
-    read -r ip name <<< $(awk 'NR==4 {print $1, $2}' nodes.txt)
-    DATA_NODE_0=$name
-    NODES[$name]=$ip
-    info "Data node 0: $name ($ip)"
+    DN0_LINE=$(sed -n '4p' nodes.txt)
+    DN0_IP=$(echo "$DN0_LINE" | cut -d' ' -f1)
+    DATA_NODE_0=$(echo "$DN0_LINE" | cut -d' ' -f2)
+    NODES[$DATA_NODE_0]=$DN0_IP
+    info "Data node 0: $DATA_NODE_0 ($DN0_IP)"
     
     # Fifth line is data node 1
-    read -r ip name <<< $(awk 'NR==5 {print $1, $2}' nodes.txt)
-    DATA_NODE_1=$name
-    NODES[$name]=$ip
-    info "Data node 1: $name ($ip)"
+    DN1_LINE=$(sed -n '5p' nodes.txt)
+    DN1_IP=$(echo "$DN1_LINE" | cut -d' ' -f1)
+    DATA_NODE_1=$(echo "$DN1_LINE" | cut -d' ' -f2)
+    NODES[$DATA_NODE_1]=$DN1_IP
+    info "Data node 1: $DATA_NODE_1 ($DN1_IP)"
 }
 
 # Test connectivity to all nodes
