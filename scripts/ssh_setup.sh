@@ -30,17 +30,19 @@ setup_ssh_keys() {
 create_user() {
     local user=$1
     
-    # Remove user if exists (including home directory)
     if id "$user" &>/dev/null; then
         echo "Removing existing $user user..."
+        sudo pkill -u "$user" 2>/dev/null || true  # Kill any processes
         sudo userdel -r "$user" 2>/dev/null || true
+        sleep 1  # Give system time to clean up
     fi
     
-    echo "Creating user $user..."
+    echo "Creating new $user user..."
     # Create new user
     sudo useradd -m -s /bin/bash "$user"
     
-    # Set password with manual entry
+    echo "Setting password for $user..."
+    # Force password prompt
     while true; do
         if sudo passwd "$user"; then
             break
