@@ -128,8 +128,8 @@ create_user() {
     
     echo "Creating new $user user..."
     sudo useradd -m -s /bin/bash "$user"
-    echo "Please set password for $user on $node:"
-    sudo passwd "$user"
+    # Use password from environment variable
+    echo "$user:$hadoop_pwd" | sudo chpasswd
 }
 
 # Function to setup SSH keys
@@ -166,6 +166,13 @@ distribute_keys() {
 main() {
     local nodes_file=$1
     
+    # Check for hadoop_pwd environment variable
+    if [ -z "$hadoop_pwd" ]; then
+        echo "Error: hadoop_pwd environment variable is not set"
+        echo "Please set it first: export hadoop_pwd=your_password"
+        exit 1
+    fi
+    
     # Check parameters
     if [ -z "$nodes_file" ]; then
         echo "Usage: $0 <nodes_file>"
@@ -194,7 +201,7 @@ main() {
         echo "Updating /etc/hosts..."
         sudo cp /tmp/hosts_content /etc/hosts
         
-        # Create hadoop user
+        # Create hadoop user with password from environment variable
         create_user "hadoop" "$name"
     done
     
