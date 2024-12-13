@@ -34,12 +34,14 @@ validate_and_parse_config() {
     JUMP_SERVER=$(head -n 1 nodes.txt)
     if [ -z "$JUMP_SERVER" ]; then
         error "Jump server IP not found in nodes.txt"
-    fi  # Changed '}' to 'fi'
+    fi
     info "Jump server: $JUMP_SERVER"
     
     # Parse node information
     declare -g -A NODES
     while read -r line; do
+        # Trim any whitespace
+        line=$(echo "$line" | tr -s ' \t')
         if [[ $line =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]+([^[:space:]]+)$ ]]; then
             NODES["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
             info "Found node: ${BASH_REMATCH[2]} (${BASH_REMATCH[1]})"
@@ -49,15 +51,18 @@ validate_and_parse_config() {
     # Validate required nodes
     NAME_NODE=""
     for node in "${!NODES[@]}"; do
-        if [[ $node == *"-nn" ]]; then
+        # Debug output
+        info "Checking node: '$node'"
+        if [[ "$node" == *"nn"* ]]; then
             NAME_NODE=$node
+            info "Found name node: $node"
             break
         fi
     done
     
     if [ -z "$NAME_NODE" ]; then
-        error "Name node not found in nodes.txt"
-    fi  # Changed '}' to 'fi'
+        error "Name node not found in nodes.txt (Looking for 'nn' in node name)"
+    fi
     info "Name node: $NAME_NODE (${NODES[$NAME_NODE]})"
 }
 
