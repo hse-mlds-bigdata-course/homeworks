@@ -121,54 +121,48 @@ test_connectivity() {
 
 
 update_hosts() {
-    local ip=$1
-    local node=$2
+    log "Updating hosts files..."
     
-    log "Updating hosts file on $node"
-    
-    # Create temporary hosts file
+    # Create hosts file content
     > temp_hosts
     for n in "${!NODES[@]}"; do
         echo "${NODES[$n]} $n" >> temp_hosts
     done
-    info "Created temp_hosts file with content:"
+    info "Created hosts file content:"
     cat temp_hosts
     
-    # Copy hosts file to remote
-    info "Copying hosts file to remote..."
-    if ! scp_with_pass temp_hosts "team@$ip:/tmp/hosts"; then
-        error "Failed to copy hosts file to remote"
+    # First update current node (jump node)
+    info "Updating hosts on current node (jump node)..."
+    echo "$TEAM_PASSWORD" | sudo -S bash -c "cat temp_hosts > /etc/hosts"
+    if [ $? -ne 0 ]; then
+        error "Failed to update hosts on jump node"
+        rm -f temp_hosts
         return 1
     fi
-    info "Successfully copied hosts file"
+    info "Successfully updated jump node hosts"
     
-    # Debug: Check if file exists and show its content
-    info "Checking remote file..."
-    ssh_with_pass "$ip" "ls -l /tmp/hosts; cat /tmp/hosts"
-    
-    # Debug: Show current user and attempt sudo
-    info "Testing sudo access..."
-    ssh_with_pass "$ip" "whoami; echo 'Testing sudo access...'; echo '$TEAM_PASSWORD' | sudo -S whoami" || {
-        error "Failed sudo test"
-        return 1
-    }
-    
-    # Update /etc/hosts using sudo with explicit password passing
-    info "Attempting to update /etc/hosts..."
-    ssh_with_pass "$ip" "cat /tmp/hosts | sudo --prompt='' -S bash -c 'cat > /etc/hosts'" << EOF
-$TEAM_PASSWORD
-EOF
-    
-    # Debug: Verify the update
-    info "Verifying /etc/hosts content..."
-    ssh_with_pass "$ip" "sudo cat /etc/hosts"
+    # Then update other nodes
+    for node in "${!NODES[@]}"; do
+        local ip="${NODES[$node]}"
+        if [[ "$node" != *"jn"* ]]; then  # Skip jump node as it's already done
+            info "Updating hosts on $node ($ip)..."
+            sshpass -p "$TEAM_PASSWORD" scp -o StrictHostKeyChecking=no temp_hosts "team@$ip:/tmp/hosts"
+            if [ $? -ne 0 ]; then
+                error "Failed to copy hosts file to $node"
+                continue
+            fi
+            
+            sshpass -p "$TEAM_PASSWORD" ssh -o StrictHostKeyChecking=no "team@$ip" "echo '$TEAM_PASSWORD' | sudo -S bash -c 'cat /tmp/hosts > /etc/hosts && rm -f /tmp/hosts'"
+            if [ $? -ne 0 ]; then
+                error "Failed to update hosts on $node"
+            else
+                info "Successfully updated hosts on $node"
+            fi
+        fi
+    done
     
     # Cleanup
-    info "Cleaning up..."
-    ssh_with_pass "$ip" "rm /tmp/hosts" || error "Failed to remove temporary file"
     rm -f temp_hosts
-    
-    info "Update hosts completed for $node"
 }
 
 
