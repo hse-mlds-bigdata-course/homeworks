@@ -128,19 +128,26 @@ update_hosts() {
         echo "${NODES[$n]} $n" >> temp_hosts
     done
     
-    # Copy to remote and update hosts file with sudo
+    # Copy the local temp_hosts to the remote machine
     scp_with_pass temp_hosts "team@$ip:/tmp/hosts"
-    ssh_with_pass "$ip" "sudo -S bash -c 'cat /tmp/hosts > /etc/hosts' <<< $TEAM_PASSWORD"
+    
+    # Update the /etc/hosts file using sudo with a piped password
+    # Using 'cp' is simpler than using 'cat ... > /etc/hosts'
+    ssh_with_pass "$ip" "echo \"$TEAM_PASSWORD\" | sudo -S cp /tmp/hosts /etc/hosts"
     
     # Cleanup
     ssh_with_pass "$ip" "rm /tmp/hosts"
     rm -f temp_hosts
 }
 
+
 # Main execution
 main() {
     log "Starting Hadoop cluster setup..."
     validate_and_parse_config
+
+    export SSHPASS="$TEAM_PASSWORD"
+
     
     for node in "${!NODES[@]}"; do
         local ip="${NODES[$node]}"
