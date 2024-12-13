@@ -324,8 +324,10 @@ main() {
     echo "Phase 2: Setting up SSH connections..."
     tail -n +2 "$nodes_file" | while read -r ip name rest; do
         echo "Setting up SSH for node: $name ($ip)"
-        ssh "team@$name" "$(declare -f setup_ssh_keys) && setup_ssh_keys hadoop"
-        ssh "team@$name" "sudo -u hadoop cat /home/hadoop/.ssh/id_ed25519.pub" >> /tmp/all_keys
+        # Again, use IP
+        ssh -o StrictHostKeyChecking=no "team@$ip" "$(declare -f setup_ssh_keys); setup_ssh_keys hadoop"
+        # Fetch the public key
+        ssh -o StrictHostKeyChecking=no "team@$ip" "sudo -u hadoop cat /home/hadoop/.ssh/id_ed25519.pub" >> /tmp/all_keys
     done
     
     # Distribute the keys
