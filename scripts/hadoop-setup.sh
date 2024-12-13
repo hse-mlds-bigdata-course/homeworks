@@ -116,6 +116,7 @@ test_connectivity() {
     log "All nodes are reachable"
 }
 
+
 update_hosts() {
     local ip=$1
     local node=$2
@@ -127,18 +128,52 @@ update_hosts() {
     for n in "${!NODES[@]}"; do
         echo "${NODES[$n]} $n" >> temp_hosts
     done
+    info "Created temp_hosts file with content:"
+    cat temp_hosts
     
     # Copy hosts file to remote
-    scp_with_pass temp_hosts "team@$ip:/tmp/hosts"
+    info "Copying hosts file to remote..."
+    if ! scp_with_pass temp_hosts "team@$ip:/tmp/hosts"; then
+        error "Failed to copy hosts file to remote"
+        return 1
+    fi
+    info "Successfully copied hosts file"
+    
+    # Debug: Check if file exists and show its content
+    info "Checking remote file..."
+    ssh_with_pass "$ip" "ls -l /tmp/hosts; cat /tmp/hosts"
+    
+    # Debug: Show current user and attempt sudo
+    info "Testing sudo access..."
+    ssh_with_pass "$ip" "whoami; echo 'Testing sudo access...'; echo '$TEAM_PASSWORD' | sudo -S whoami" || {
+        error "Failed sudo test"
+        return 1
+    }
     
     # Update /etc/hosts using sudo with explicit password passing
+    info "Attempting to update /etc/hosts..."
     ssh_with_pass "$ip" "cat /tmp/hosts | sudo --prompt='' -S bash -c 'cat > /etc/hosts'" << EOF
 $TEAM_PASSWORD
 EOF
     
+    # Debug: Verify the update
+    info "Verifying /etc/hosts content..."
+    ssh_with_pass "$ip" "sudo cat /etc/hosts"
+    
     # Cleanup
-    ssh_with_pass "$ip" "rm /tmp/hosts"
+    info "Cleaning up..."
+    ssh_with_pass "$ip" "rm /tmp/hosts" || error "Failed to remove temporary file"
     rm -f temp_hosts
+    
+    info "Update hosts completed for $node"
+}
+
+# Also add debug output to ssh_with_pass function:
+ssh_with_pass() {
+    local host=$1
+    shift
+    info "Executing SSH command on $host: $@"
+    sshpass -e ssh -o StrictHostKeyChecking=no "team@$host" "$@"
 }
 
 
