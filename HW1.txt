@@ -164,8 +164,7 @@ source ~/.profile
 ssh team-25-dn-1
 source ~/.profile
 
-exit
-
+ssh team-25-nn
 cd hadoop-3.4.0/etc/hadoop
 nano hadoop-env.sh
 # add line:
@@ -180,7 +179,7 @@ nano core-site.xml
 <configuration>
     <property>
         <name>fs.defaultFS</name>
-        <value>hdfs://team-25-nn:9000</value> # better than 127.0.0.1
+        <value>hdfs://team-25-nn:9000</value>
     </property>
 </configuration>
 
@@ -223,7 +222,7 @@ jps
 exit
 
 
-### Part 2. Java and Python config
+### Part 2. NGINX config
 ssh team-25-jn # SSH to jump node
 su team
 

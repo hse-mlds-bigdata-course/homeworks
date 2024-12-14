@@ -40,9 +40,9 @@ scp mapred-site.xml team-25-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
 scp yarn-site.xml team-25-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
 scp yarn-site.xml team-25-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
 
-cd ../../
+cd ~/hadoop-3.4.0
 sbin/start-yarn.sh # start yarn
-mapred --daemon start historyserver
+bin/mapred --daemon start historyserver
 
 ssh team-25-jn # go back to jump node
 su team
@@ -77,8 +77,8 @@ sudo systemctl reload nginx
 exit
 
 # open in web browser on local machine
-176.109.91.27:8088 # YARN interface
-176.109.91.27:19888 # JobHistory server
+localhost:8088 # YARN interface
+localhost:19888 # JobHistory server
 
 exit
 
