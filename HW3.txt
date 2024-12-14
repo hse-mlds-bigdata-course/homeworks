@@ -35,7 +35,7 @@ sudo nano /etc/postgresql/16/main/pg_hba.conf
 - paste following lines:
 host    metastore       hive            192.168.1.0/24          scram-sha-256
 host    metastore       hive            127.0.0.1/32            scram-sha-256
-host    all             all             127.0.0.1/32            scram-sha-256 host metastore hive 
+host    all             all             127.0.0.1/32            scram-sha-256 # host metastore hive 
 - quit nano
 
 ## restart postgres and and go back to jn ##
@@ -44,13 +44,15 @@ sudo systemctl status postgresql
 exit 
 ssh team-25-jn #back to jn
 
+su team
 sudo apt install postgresql-client-16 #install to jn from user team
 enter pwd
 y
 
-
+su hadoop
 ## Create tunnel as hadoop user ##
 ssh -L 5432:team-25-nn:5432 hadoop@team-25-nn -N &
+
 psql -h localhost -p 5432 -U hive -W -d metastore
 \q #leave metastore
 
@@ -58,7 +60,7 @@ psql -h localhost -p 5432 -U hive -W -d metastore
 ## HIVE INSTALLATION ##
 
 su hadoop
-cd~
+cd ~
 wget https://dlcdn.apache.org/hive/hive-4.0.1/apache-hive-4.0.1-bin.tar.gz
 tar -xvzf apache-hive-4.0.1-bin.tar.gz
 cd apache-hive-4.0.1-bin/
@@ -98,7 +100,7 @@ nano hive-site.xml
 	</property>
 	<property>
 		<name>javax.jdo.option.ConnectionPassword</name>
-		<value>'any_pass_you_like'</value>
+		<value>any_pass_you_like</value>
 	</property>
 </configuration>
 
@@ -142,7 +144,7 @@ hdfs dfs -chmod g+w /user/hive/warehouse # granting rights
 
 
 ## INITIALIZING DB ## 
-cd ../
+cd ~/apache-hive-4.0.1-bin/
 bin/schematool -dbType postgres -initSchema
 
 
@@ -210,6 +212,9 @@ LOAD DATA INPATH '/input/test_file.csv' INTO TABLE test.balance_payments;
 - exit (ctr+C)
 
 # check that data has loaded:
+beeline -u jdbc:hive2://team-25-jn:5433
+use test;
+
 SELECT * FROM balance_payments LIMIT 5;
 SELECT COUNT(*) FROM balance_payments;
 - exit (ctr+C)
@@ -262,6 +267,7 @@ SHOW PARTITIONS test.balance_payments_partitioned;
 # Check some data
 SELECT * FROM test.balance_payments_partitioned LIMIT 5;
 
+- exit (ctrl+C)
 
 ### Creating part table ###
 
@@ -271,13 +277,15 @@ hdfs dfs -ls /user/hive/warehouse/test.db/balance_payments
 # see file contents
 hdfs dfs -cat /user/hive/warehouse/test.db/balance_payments/* | head -n 5
 
+## Non-coding part
+
 # check Hadoop interface
 # 1) SSH login (from local machine)
 ssh -L 9870:localhost:9870 -L 8088:localhost:8088 -L 19888:localhost:19888 team@176.109.91.27
 
 # 2) go to localhost:9870 for Hadoop
 
-# Go to Utilities, then enter path:
+# Go to Utilities / Browse the file system and enter path:
 /user/hive/warehouse/test.db/balance_payments/
 
 # Check part table here:
