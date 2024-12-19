@@ -17,7 +17,7 @@ cd ~
 
 ## Загрузка и установка Spark
 
-Скачайте и распакуйте Spark (например, версию 3.4.4)
+Скачайте и распакуйте Spark (например, версию 3.4.4):
 ```bash
 wget https://downloads.apache.org/spark/spark-3.4.4/spark-3.4.4-bin-hadoop3.tgz
 tar -xvzf spark-3.4.4-bin-hadoop3.tgz
@@ -30,21 +30,6 @@ nano ~/.profile
 ```
 Добавьте следующие строки:
 ```bash
-export SPARK_HOME=/home/hadoop/spark
-export PATH=$PATH:$SPARK_HOME/bin
-```
-
-Полностью файл после выполнения всех предыдущих шагов (в т.ч. из предыдущих руководств) должен выглядеть примерно так:
-```bash
-export HADOOP_HOME=/home/hadoop/hadoop-3.4.0
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
-
-export HIVE_HOME=/home/hadoop/apache-hive-4.0.0-alpha-2-bin
-export HIVE_CONF_DIR=$HIVE_HOME/conf
-export HIVE_AUX_JARS_PATH=$HIVE_HOME/lib/*
-export PATH=$PATH:$HIVE_HOME/bin
-
 export SPARK_HOME=/home/hadoop/spark
 export PATH=$PATH:$SPARK_HOME/bin
 ```
@@ -65,7 +50,7 @@ spark-shell --version
 ssh team-25-nn
 ```
 
-Внесите в файл `~/.profile` пользователя hadoop те же изменения, что описаны выше (добавьте две указанные строки; обратите внимание, что итоговый файл на этом узле может отличаться от соответствующего файла на узле `team-25-jn`). Выполните файл командой `source ~/.profile`. Выйдите обратно на `team-25-jn` командой `exit`. Повторите для двух оставшихся узлов: `team-25-dn-0` и `team-25-dn-1`.
+Внесите в файл `~/.profile` (под пользователем hadoop) те же изменения, что описаны выше (добавьте две указанные строки). Выполните файл командой `source ~/.profile`. Выйдите обратно на `team-25-jn` командой `exit`. Повторите для двух оставшихся узлов: `team-25-dn-0` и `team-25-dn-1`.
 
 ## Настройка Spark для работы в режиме YARN
 
@@ -126,7 +111,7 @@ source ~/.profile
 spark-shell --version
 exit
 ```
-Повторите для `team-25-dn-0` и `team-25-dn-1`.
+Повторите проверку для `team-25-dn-0` и `team-25-dn-1`.
 
 Зайдите на узел `team-25-nn` и убедитесь, что на нем запущен ResourceManager:
 ```bash
@@ -141,7 +126,7 @@ sbin/start-yarn.sh
 
 Выйдите обратно на `team-25-jn` командой `exit`.
 
-Аналогичным образом проверьте, что на `team-25-dn-0` и `team-25-dn-1` запущен NodeManager, и в случае необходимости запустите YARN.
+Аналогичным образом проверьте, что на `team-25-dn-0` и `team-25-dn-1` запущен NodeManager, и в случае необходимости запустите на них YARN.
 
 Убедитесь, что находитесь на `team-25-jn`. Скопируйте директорию с конфигами Hadoop c `team-25-nn` на `team-25-jn`:
 ```bash
@@ -179,7 +164,7 @@ spark-shell --master yarn
 ```
 
 ## Установка PostgreSQL JDBC драйвера
-Скопируйте драйвер PostgreSQL в Spark из Hive:
+Скопируйте драйвер PostgreSQL в Spark из директории установленного ранее Hive:
 ```bash
 cp /home/hadoop/apache-hive-4.0.0-alpha-2-bin/lib/postgresql-42.7.4.jar $SPARK_HOME/jars
 ```
@@ -200,7 +185,7 @@ su team
 
 Установите пакет `python3.12-venv` для создания виртуальных окружений (считаем, что на машине установлен Python 3.12):
 ```bash
-apt install python3.12-venv
+sudo apt install python3.12-venv
 ```
 
 Переключитесь на пользователя hadoop:
@@ -217,13 +202,13 @@ pip install ipython pyspark==3.4.4
 ```
 
 ## Запуск скрипта
-В корне репозитория, там же, где находится данная инструкция, есть скрипт `transform.py`. Данный скрипт создает Spark-сессию в режиме YARN, загружает сохраненные в предыдущих заданиях данные (`/user/hive/warehouse/test.db/balance_payments/test_file.csv`), применяет 5 трансформаций к данным, устанавливает новый столбец `decade` в качестве столбца партиционирования (вместо `year`, таким образом уменьшая число партиций) и сохраняет данные как таблицу.
+В корне репозитория, там же, где находится данное руководство, есть скрипт `transform.py`. Скрипт создает Spark-сессию в режиме YARN, загружает сохраненные в предыдущих заданиях данные (`/user/hive/warehouse/test.db/balance_payments/test_file.csv`), применяет 5 трансформаций к данным, устанавливает новый столбец `decade` в качестве столбца партиционирования (вместо `year`, таким образом уменьшая число партиций) и сохраняет данные как таблицу.
 
-Находясь в `~` пользователя hadoop, откройте файл `transform.py` в редакторе:
+Находясь в `~` пользователя hadoop, откройте новый файл `transform.py` в редакторе:
 ```bash
 nano transform.py
 ```
-Вставьте содержимое файла `transform.py` из данного репозитория. Сохраните изменения и выйдите из редактора.
+Скопируйте содержимое файла `transform.py` из данного репозитория и вставьте в открытый редактор. Сохраните изменения и выйдите из редактора.
 
 Запустите скрипт с помощью Spark:
 ```bash
@@ -231,8 +216,64 @@ spark-submit --master yarn --deploy-mode client transform.py
 ```
 
 ## Проверка результатов
-После завершения работы скрипта зайдите в Hadoop UI (`http://localhost:9870/`) и удостоверьтесь, что:
-1. Появилась новая БД `transformed_data.db` (см. screenshots/HW4.1_new_db.png)
-2. В данной БД есть таблица `transformed_balance_payments` (см. screenshots/HW4.2_new_table.png)
-3. В данной таблице 6 партиций, партиционирование произведено по десятилетию (см. screenshots/HW4.3_new_partitions.png)
+После завершения работы скрипта подключитесь к HiveServer2 через Beeline:
+```bash
+beeline -u jdbc:hive2://team-25-jn:5433
+```
+(Если подключиться не удается, запустите HiveServer2, как указано в руководстве `HW3_manual.md`).
+
+Выполните:
+```bash
+SHOW DATABASES;
+```
+Вывод должен быть следующим (обязательно наличие `test` и `transformed_data`):
+```bash
++-------------------+
+|   database_name   |
++-------------------+
+| default           |
+| test              |
+| transformed_data  |
++-------------------+
+```
+
+Выполните:
+```bash
+USE transformed_data;
+SHOW TABLES;
+```
+
+Вывод:
+```bash
++-------------------------------+
+|           tab_name            |
++-------------------------------+
+| transformed_balance_payments  |
++-------------------------------+
+```
+
+Выполните:
+```bash
+SELECT `period`, `date`, `year`, `month`, `data_value`, `decade` 
+FROM transformed_balance_payments 
+LIMIT 5;
+```
+Пример вывода:
+```bash
++----------+-------------+-------+--------+-------------+---------+
+|  period  |    date     | year  | month  | data_value  | decade  |
++----------+-------------+-------+--------+-------------+---------+
+| 1971.06  | 1971-06-01  | 1971  | 6      | 426.0       | 1970    |
+| 1971.09  | 1971-09-01  | 1971  | 9      | 435.0       | 1970    |
+| 1971.12  | 1971-12-01  | 1971  | 12     | 360.0       | 1970    |
+| 1972.03  | 1972-03-01  | 1972  | 3      | 417.0       | 1970    |
+| 1972.06  | 1972-06-01  | 1972  | 6      | 528.0       | 1970    |
++----------+-------------+-------+--------+-------------+---------+
+```
+
+
+Вы также можете зайти в Hadoop UI (`http://localhost:9870/`) и удостовериться, что:
+1. Появилась новая БД `transformed_data.db` (см. `screenshots/HW4.1_new_db.png` в репозитории)
+2. В данной БД есть таблица `transformed_balance_payments` (см. `screenshots/HW4.2_new_table.png` в репозитории)
+3. В данной таблице 6 партиций, партиционирование произведено по десятилетию (см. `screenshots/HW4.3_new_partitions.png` в репозитории)
 
