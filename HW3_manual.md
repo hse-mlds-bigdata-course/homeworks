@@ -145,9 +145,9 @@ su hadoop
 2. Зайдите в домашнюю директорию и скачайте Hive:
 ```bash
 cd ~
-wget https://dlcdn.apache.org/hive/hive-4.0.1/apache-hive-4.0.1-bin.tar.gz
-tar -xvzf apache-hive-4.0.1-bin.tar.gz
-cd apache-hive-4.0.1-bin/
+wget wget https://archive.apache.org/dist/hive/hive-4.0.0-alpha-2/apache-hive-4.0.0-alpha-2-bin.tar.gz
+tar -xvzf apache-hive-4.0.0-alpha-2-bin.tar.gz
+cd apache-hive-4.0.0-alpha-2-bin/
 ```
 
 3. Загрузите PostgreSQL JDBC драйвер:
@@ -207,7 +207,7 @@ export HADOOP_HOME=/home/hadoop/hadoop-3.4.0
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
 
-export HIVE_HOME=/home/hadoop/apache-hive-4.0.1-bin
+export HIVE_HOME=/home/hadoop/apache-hive-4.0.0-alpha-2-bin
 export HIVE_CONF_DIR=$HIVE_HOME/conf
 export HIVE_AUX_JARS_PATH=$HIVE_HOME/lib/*
 export PATH=$PATH:$HIVE_HOME/bin
@@ -252,7 +252,7 @@ hdfs dfs -chmod g+w /user/hive/warehouse
 
 1. Инициализируйте схему базы данных для Hive:
 ```bash
-cd ~/apache-hive-4.0.1-bin/
+cd ~/apache-hive-4.0.0-alpha-2-bin/
 bin/schematool -dbType postgres -initSchema
 ```
 
