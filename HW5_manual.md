@@ -46,9 +46,47 @@ touch dag.py
 
 Заполняем его кодом
 ```
+import datetime
+from airflow.decorators import task
+from airflow.models.dag import DAG
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
+
+from pyspark.sql import SparkSession
+
+with DAG(
+    "example",
+    schedule_interval=None,
+    start_date = days_ago(2),
+    catchup=False,
+    schedule=None,
+    tags=["example"],
+) as dag:
+
+    def load_data():
+        spark = SparkSession.builder \
+            .master("yarn") \
+            .appName("HW5") \
+            .config("spark.sql.warehouse.dir", "hdfs://team-25-nn:9000/user/hive/warehouse") \
+            .config("hive.metastore.uris", "thrift://team-25-jn:5433") \
+            .enableHiveSupport() \
+            .getOrCreate()
+
+        df = spark.read.csv("/user/hive/warehouse/test.db/balance_payments/test_file.csv", header=True, inferSchema=True)
+
+        df.write.saveAsTable("test.balance_payments")
+        spark.stop()
+
+    load_data = PythonOperator(task_id="load_data", python_callable=load_data)
+
+    load_data
 ```
 
 Копируем в папку с примерами
 ```
 cp dag.py airflow/lib/python3.12/site-packages/airflow/example_dags
 ```
+
+Запускаем в ui airflow dag на выполнение
+
+Проверяем результат 
