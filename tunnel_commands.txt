@@ -1,5 +1,5 @@
 # 1) On local machine (own PC) create three tunnels
-ssh -L 9870:localhost:9870 -L 8088:localhost:8088 -L 8080:localhost:8080 -L 19888:localhost:19888 -L 8090:localhost:8090 team@176.109.91.27
+ssh -L 9870:localhost:9870 -L 8088:localhost:8088 -L 8080:localhost:8080 -L 19888:localhost:19888 -L 8092:localhost:8092 team@176.109.91.27
 
 
 # 2) Create setup_tunnels.sh on Jump Node and save
@@ -17,11 +17,11 @@ chmod +x ~/setup_tunnels.sh
 ./setup_tunnels.sh
 
 # 4) Login from local machine (own PC)
-ssh -L 9870:localhost:9870 -L 8088:localhost:8088 -L 8080:localhost:8080 -L 19888:localhost:19888 -L 8090:localhost:8090 team@176.109.91.27
+ssh -L 9870:localhost:9870 -L 8088:localhost:8088 -L 8080:localhost:8080 -L 19888:localhost:19888 -L 8092:localhost:8092 team@176.109.91.27
 
 # Access web services in browser:
 # Hadoop UI: http://localhost:9870
 # YARN UI: http://localhost:8088
 # Spark UI: http://localhost:8080
 # History Server: http://localhost:19888
-# Airflow: http://localhost:8090
+# Airflow: http://localhost:8092
